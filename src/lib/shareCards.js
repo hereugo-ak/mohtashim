@@ -1,4 +1,6 @@
 // Six editorial share-card directions. User-provided strings are escaped before entering SVG.
+import { AMU_LOGO } from './amuLogo.js';
+
 export function xml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -68,8 +70,13 @@ function svgMultiline(lines, { x, y, size = 27, lineGap = 37, fill = '#17231D', 
   return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="${family}" font-size="${size}" font-weight="${weight}"${italic ? ' font-style="italic"' : ''}${letterSpacing ? ` letter-spacing="${letterSpacing}"` : ''} fill="${fill}">${lines.map((line, index) => `<tspan x="${x}" dy="${index === 0 ? 0 : lineGap}">${xml(line)}</tspan>`).join('')}</text>`;
 }
 
+function amuSeal(x, y, size) {
+  // Square box + meet: the inscribed circular emblem stays perfectly round.
+  return `<image x="${x}" y="${y}" width="${size}" height="${size}" href="${AMU_LOGO}" preserveAspectRatio="xMidYMid meet"/>`;
+}
+
 function header(brand, fg, accent, number, x = 82, right = 998) {
-  return `<text x="${x}" y="86" font-family="Georgia,serif" font-size="29" fill="${accent}">MS</text><text x="${x + 54}" y="84" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2.2" fill="${fg}" opacity=".9">${xml(brand)}</text><text x="${right}" y="84" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2" fill="${fg}" opacity=".72">${String(number).padStart(2, '0')} / 06</text>`;
+  return `${amuSeal(x - 4, 52, 58)}<text x="${x + 68}" y="84" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2.2" fill="${fg}" opacity=".9">${xml(brand)}</text><text x="${right}" y="84" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2" fill="${fg}" opacity=".72">${String(number).padStart(2, '0')} / 06</text>`;
 }
 
 function contributionPanel(note, palette, { x = 82, width = 916, maxChars = 56, maxDetail = 220 } = {}) {
@@ -135,7 +142,7 @@ export function makeCardSvg(note = {}, index = 0) {
     headerMarkup = header(palette.brand, palette.fg, palette.accent, style + 1);
   } else if (style === 4) {
     backdrop += `<rect x="0" y="0" width="205" height="1350" fill="#064B37"/><rect x="205" y="0" width="7" height="1350" fill="${palette.accent}"/>`;
-    ornaments = `<text x="102" y="88" text-anchor="middle" font-family="Georgia,serif" font-size="30" fill="${palette.accent}">MS</text><path d="M55 126 H150" stroke="${palette.accent}" stroke-opacity=".6"/><text x="102" y="200" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" letter-spacing="2.5" fill="#FBF8F0">STUDENT</text><text x="102" y="226" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" letter-spacing="2.5" fill="#FBF8F0">VOICE</text>`;
+    ornaments = `${amuSeal(72, 52, 60)}<path d="M55 132 H150" stroke="${palette.accent}" stroke-opacity=".6"/><text x="102" y="200" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" letter-spacing="2.5" fill="#FBF8F0">STUDENT</text><text x="102" y="226" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" letter-spacing="2.5" fill="#FBF8F0">VOICE</text>`;
     headerMarkup = `<text x="254" y="88" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2.3" fill="${palette.fg}" opacity=".9">${xml(palette.brand)}</text><text x="998" y="88" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2" fill="${palette.fg}" opacity=".72">05 / 06</text>`;
   } else {
     backdrop = `<rect width="1080" height="1350" fill="${palette.bg}"/><path d="M0 0 H1080 V635 L0 735 Z" fill="#064B37"/>`;
