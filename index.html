@@ -111,11 +111,16 @@
 <div class="form-note">Your selected topic and a short excerpt of your idea appear on the share card. Your name and class stay off it. Do not include identifying details in your note.</div>
 <div class="submit-row"><p>Your contribution is sent securely to the campaign. Your identity stays off the share card.</p><button class="button submit-button" id="submitContribution" type="submit">Create my contribution <span aria-hidden="true" class="arrow">↗</span></button></div>
 </form>
-<section aria-labelledby="successTitle" class="form-success" id="formSuccess" tabindex="-1">
-<div class="success-head"><span aria-hidden="true" class="success-symbol">✓</span><div><h3 id="successTitle">Your voice belongs in the conversation.</h3><p>Your contribution has been received. Share the card, then invite someone from another faculty to add their perspective.</p></div></div>
-<div class="save-status" id="saveStatus">Received by the campaign.</div>
+<section aria-label="Contribution received" class="form-success" id="formSuccess" tabindex="-1">
+<div class="success-strip">
+<span aria-hidden="true" class="success-symbol">✓</span>
+<div class="success-strip-copy"><span class="eyebrow">Received by the campaign</span><div class="success-meta"><span class="meta-chip" id="saveStatus">Reference —</span><span class="meta-chip chip-privacy" id="receiptPrivacy">Identity not shown</span></div></div>
+</div>
+<div class="share-intro"><span>Your share card · <b id="variantLabel">01 / 06</b></span><button class="change-card" id="changeCard" type="button">Try another design ↻</button></div>
+<div class="share-card-wrap"><div aria-label="Share card preview" id="shareCard"></div></div>
+<div class="success-actions"><button class="button" id="sharePrompt" type="button">Share your message <span aria-hidden="true" class="arrow">↗</span></button><button class="button button-outline" id="downloadCard" type="button">Save share card <span aria-hidden="true" class="arrow">↓</span></button></div>
 <section class="contribution-receipt" id="contributionReceipt" aria-labelledby="receiptHeading">
-  <div class="receipt-heading"><span class="eyebrow">Your contribution · at a glance</span><span class="receipt-private" id="receiptPrivacy">Identity not shown</span></div>
+  <div class="receipt-heading"><span class="eyebrow">Your contribution · at a glance</span><span class="receipt-private">On record</span></div>
   <h4 id="receiptHeading" class="receipt-title">What you brought forward</h4>
   <div class="receipt-meta">
     <div class="receipt-cell"><span>Faculty</span><strong id="receiptFaculty">—</strong></div>
@@ -127,9 +132,6 @@
   </div>
   <p class="receipt-empty" id="receiptEmpty" hidden>No additional note was added. Your selected faculty and topic are recorded with the contribution.</p>
 </section>
-<div class="share-intro"><span>Your share card · <b id="variantLabel">01 / 06</b></span><button class="change-card" id="changeCard" type="button">Try another design ↻</button></div>
-<div class="share-card-wrap"><div aria-label="Share card preview" id="shareCard"></div></div>
-<div class="success-actions"><button class="button" id="downloadCard" type="button">Save share card <span aria-hidden="true" class="arrow">↓</span></button><button class="button button-outline" id="sharePrompt" type="button">Share your message <span aria-hidden="true" class="arrow">↗</span></button></div>
 <p class="referral-line"><strong>Keep the conversation moving.</strong> Send this to one student from another faculty and invite their perspective. A stronger manifesto begins by listening beyond our own circle.</p>
 <button class="new-contribution" id="newContribution" type="button">Add another contribution</button>
 </section>
