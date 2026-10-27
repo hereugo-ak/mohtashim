@@ -1,0 +1,21 @@
+{
+  "name": "amu-make-room-for-every-voice",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "node --check src/main.js && node --check src/lib/shareCards.js && node --check src/lib/contributionRepository.js && node --check src/lib/motion.js && node --check api/contributions.js && node --check api/health.js && node --check server/contributionValidation.js && node --check server/supabaseRest.js && node --check backend/server.js && node --check backend/serverRoutes.js",
+    "test": "node --test",
+    "dev:full": "vercel dev",
+    "start:backend": "node --env-file-if-exists=.env.local backend/server.js"
+  },
+  "devDependencies": {
+    "vite": "^8.3.4"
+  }
+}
