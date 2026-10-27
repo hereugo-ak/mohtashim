@@ -1,16 +1,16 @@
-# Tier 2 keep-alive: GitHub Actions pings the Render API every 10 minutes,
-# offset from the Supabase pg_cron job (which fires at :00, :10, :20 ...) so
-# the two schedules interleave. Public repositories get free, unlimited
-# Actions minutes, so this runs around the clock.
+# Uptime monitor for the campaign API path that visitors actually use:
+# the same-origin Vercel function (which also proves the Supabase connection).
+# Optionally also checks the Render standby API if RE_HEALTH is set.
 #
-# GitHub disables scheduled workflows after 60 days without repository
-# activity; .github/workflows/repo-heartbeat.yml commits a weekly stamp to
-# keep this workflow permanently enabled.
+# GitHub registers new cron schedules with a delay (often 30-60+ minutes after
+# the first push) and individual runs can drift a few minutes. Treat this as a
+# monitor with warning annotations, not as a precision pinger - the primary
+# path (Vercel serverless) does not depend on it.
 #
-# Optional: set a repository variable RENDER_HEALTH_URL to override the URL
-# below (Settings -> Secrets and variables -> Actions -> Variables).
+# Optional repository variables (Settings -> Secrets and variables -> Actions
+# -> Variables): VERCEL_HEALTH_URL, RENDER_HEALTH_URL.
 
-name: Keep Render API warm
+name: Campaign API uptime monitor
 
 on:
   schedule:
@@ -21,28 +21,38 @@ permissions:
   contents: read
 
 concurrency:
-  group: keep-render-alive
+  group: api-uptime-monitor
   cancel-in-progress: false
 
 jobs:
-  ping:
+  monitor:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Wake and verify the contribution API
+      - name: Check the visitor request path (Vercel function + Supabase)
         env:
-          HEALTH_URL: ${{ vars.RENDER_HEALTH_URL }}
+          HEALTH_URL: ${{ vars.VERCEL_HEALTH_URL }}
         run: |
-          url="${HEALTH_URL:-https://mohtashim.onrender.com/api/health}"
-          echo "Pinging $url"
+          url="${HEALTH_URL:-https://mohtashimforcourtmember.vercel.app/api/health}"
+          echo "Checking $url"
           for attempt in 1 2 3; do
-            code="$(curl -sS -o /tmp/health.json -w '%{http_code}' --max-time 75 "$url" 2>/dev/null || echo 000)"
+            code="$(curl -sS -o /tmp/health.json -w '%{http_code}' --max-time 60 "$url" 2>/dev/null || echo 000)"
             echo "attempt ${attempt}: HTTP ${code} $(cat /tmp/health.json 2>/dev/null || true)"
-            if [ "$code" = "200" ]; then
-              echo "API is warm and healthy."
+            if [ "$code" = "200" ] && grep -q '"ok":true' /tmp/health.json 2>/dev/null; then
+              echo "Primary API path is healthy."
               exit 0
             fi
             if [ "$attempt" -lt 3 ]; then sleep 20; fi
           done
-          echo "::warning title=Keep-alive ping failed::${url} did not return HTTP 200 after 3 attempts (this leaves the previous tier's window to hold)."
-          exit 0
+          echo "::error title=Campaign API down::${url} failed health check after 3 attempts."
+
+      - name: Check Render standby (optional)
+        if: ${{ vars.RENDER_HEALTH_URL != '' }}
+        env:
+          RENDER_HEALTH_URL: ${{ vars.RENDER_HEALTH_URL }}
+        run: |
+          code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 60 "$RENDER_HEALTH_URL" 2>/dev/null || echo 000)"
+          echo "Render standby: HTTP ${code}"
+          if [ "$code" != "200" ]; then
+            echo "::notice title=Render standby not warm::${RENDER_HEALTH_URL} returned HTTP ${code} (acceptable if the site no longer points at Render)."
+          fi

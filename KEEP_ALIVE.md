@@ -1,114 +1,86 @@
-# Keep the Render API awake 24/7
+# Keep the campaign API always available
 
-Render's free tier stops a web service after **15 minutes with no inbound
-requests**. Restarting it takes roughly **30–60 seconds**, during which
-submissions time out. This project therefore runs a **three-tier keep-alive
-system** so the API is warm whenever a visitor arrives. No tier trusts another
-tier to always work; each covers the others' failure modes.
+This project's request path is now **visitor → same-origin Vercel serverless
+function → Supabase**. Serverless functions do not hibernate like Render's
+free containers: there is no 15-minute spin-down, and a cold start is a
+fraction of a second instead of 30–60 seconds. The "keep the server awake"
+problem is removed by architecture, not by pingers.
 
-```
-Tier 1  Supabase pg_cron + pg_net    ── every 10 min (jittered 1–15 s) ──┐
-Tier 2  GitHub Actions cron          ── :07 :17 :27 :37 :47 :57         ──┼──▶  Render
-Tier 3  Browser warm-up + smart retry ── page load + every 4 min (visible)─┘     /api/health
-                                                                              /api/contributions
-```
+The Render web service can remain deployed as a standby, but nothing in the
+frontend depends on it anymore.
 
-Pings are spaced so that if any single tier dies, the remaining gap stays at
-or near the 15-minute spin-down threshold — and the submit path itself can
-wake the service on demand.
+## Primary path — Vercel serverless API (one-time setup)
 
-## Tier 1 — Supabase pg_cron + pg_net (primary)
+The functions ship in this repository (`api/contributions.js`,
+`api/health.js`, `server/*`) and are already deployed on Vercel; they only
+need the database credentials as Vercel environment variables.
 
-A database-level scheduler inside Supabase calls the public health endpoint
-every 10 minutes with 1–15 seconds of random jitter. It is precise, never
-drifts, and cannot be "auto-disabled" by a third party.
+1. In Vercel → project → **Settings → Environment Variables**, add for
+   **Production** (and Preview):
 
-1. Open the Supabase project → **SQL Editor**.
-2. Paste the entire contents of `supabase/keep_alive_cron.sql` and run it once.
-3. Confirm it returns the scheduled job row (`render-keep-alive`, active).
+   | Variable | Value | Type |
+   |---|---|---|
+   | `SUPABASE_URL` | `https://YOUR-REF.supabase.co` | Config |
+   | `SUPABASE_SECRET_KEY` | The `sb_secret_...` key (copy from Render's env settings or Supabase → Settings → API Keys) | **Secret** |
+   | `RATE_LIMIT_SECRET` | Any random string of 32+ characters | **Secret** |
 
-Verify it is firing:
+   PowerShell one-liner to generate the rate-limit secret:
+   ```powershell
+   -join ((1..2) | ForEach-Object { [guid]::NewGuid().ToString('N') })
+   ```
 
-```sql
-select jobname, schedule, active from cron.job
-where jobname = 'render-keep-alive';
+2. **Delete** `VITE_API_BASE_URL` from the Vercel project. With it removed,
+   the frontend automatically submits to its own origin
+   (`/api/contributions`) — no CORS, no Render dependency.
 
-select status, start_time, end_time
-from cron.job_run_details
-where jobid = (select jobid from cron.job where jobname = 'render-keep-alive')
-order by start_time desc limit 10;
-```
+3. **Redeploy** (Deployments → latest → ⋯ → Redeploy). Vite and Vercel
+   functions both read environment variables at build/deploy time.
 
-Each ping's HTTP result is also visible with:
+4. Verify: open `https://mohtashimforcourtmember.vercel.app/api/health`.
+   It must return `{"ok":true,"database":"connected"}`. Then submit one test
+   contribution from the site and confirm it lands in Supabase.
 
-```sql
-select status_code, content, created
-from net._http_response
-order by id desc limit 10;
-```
+The privileged key lives only in Vercel's encrypted server-side
+environment — it is never included in the browser bundle and never sent to
+the visitor.
 
-Side benefit: the health endpoint calls the `contribution_backend_health`
-RPC through the Supabase REST API, so these pings count as project activity
-and reduce the chance of the free-plan 7-day inactivity pause.
+## Uptime monitor — GitHub Actions
 
-To remove the job: `select cron.unschedule('render-keep-alive');`
+`.github/workflows/keep-render-alive.yml` checks the **real visitor path**
+(the same-origin health endpoint) every 10 minutes and raises an `::error`
+annotation on the repo if it ever fails. GitHub registers new cron schedules
+with a delay (often 30–60 minutes after push) and runs can drift a few
+minutes — that is fine, because the primary path does not depend on this
+monitor. Optional repository variables: `VERCEL_HEALTH_URL`,
+`RENDER_HEALTH_URL`.
 
-## Tier 2 — GitHub Actions pinger (backup)
+`.github/workflows/repo-heartbeat.yml` commits a weekly stamp so GitHub's
+60-day inactivity rule never disables the scheduled monitor.
 
-`.github/workflows/keep-render-alive.yml` runs on a public-repo-friendly
-schedule (offset minutes `7,17,…`) so its pings interleave between the Tier 1
-pings instead of stacking on the same minute. Each run attempts up to three
-health checks, which is enough to ride out a cold start if it ever has to
-revive the service alone. Failures emit a warning annotation instead of
-failing the run, so there is no red-X alert fatigue.
+## If you keep the Render service as a standby
 
-- Works out of the box; public repos get free, unlimited Actions minutes.
-- Optional override: set the repository variable `RENDER_HEALTH_URL`
-  (Settings → Secrets and variables → Actions → Variables) if the Render
-  origin ever changes.
-- Trigger a manual run from the Actions tab with **Run workflow**.
+Render's free tier still spins down after ~15 idle minutes, which is
+acceptable for an unused standby. If you want Render kept warm anyway:
 
-## Tier 2b — Repository heartbeat (keeps Tier 2 alive)
+1. Run `supabase/keep_alive_cron.sql` once in the Supabase SQL Editor. It
+   schedules an in-database `pg_cron` job (every 10 minutes, jittered) that
+   pings `https://mohtashim.onrender.com/api/health`, and self-tests the ping
+   immediately. Expect the self-test row to return `ping sent`.
+2. Optionally add a free external monitor at cron-job.org or UptimeRobot
+   (5-minute checks) pointing at the same URL — a third, independent pinger.
+3. Instance-hours math: one always-on free service uses ~744 of the 750 free
+   monthly hours. Keep only this one service on the free tier, or move it to
+   the paid Starter plan.
 
-GitHub **auto-disables scheduled workflows after 60 days without repository
-activity**. `.github/workflows/repo-heartbeat.yml` commits a one-line
-`keep-alive.stamp` file every Monday, resetting that clock so the pinger is
-never silently switched off. It uses a `[skip ci]` message and no-ops if the
-stamp is somehow unchanged.
+To point the frontend back at Render instead, set
+`VITE_API_BASE_URL=https://mohtashim.onrender.com` in Vercel and redeploy —
+but the same-origin path above is the recommended, sleep-proof setup.
 
-## Tier 3 — Browser warm-up and duplicate-safe retry
+## Troubleshooting the Supabase pinger
 
-Built into the frontend; needs no setup.
-
-- `src/main.js` pings `/api/health` on page load and every 4 minutes while
-  the tab is visible, and again on tab re-focus. A visitor reading the page
-  keeps the service warm right up to the moment they submit.
-- `src/lib/contributionRepository.js` makes the submit path resilient:
-  - Attempt 1 uses a 12 s timeout.
-  - On a clean connection failure (service asleep) it wakes the service by
-    polling health for up to ~66 s, then retries the submission once with a
-    30 s timeout.
-  - On an ambiguous **timeout** (request may have reached the server) it warms
-    the service but does **not** auto-resubmit — this prevents duplicate
-    contributions. The visitor simply taps submit again, hitting a warm API.
-
-## Instance-hours budget (important)
-
-Render's free tier allows **750 instance-hours per month**. One service
-running 24/7 uses about **744 hours**, so this setup fits — barely. It only
-stays free if **no other free service** runs in the same Render workspace;
-each extra always-on service pushes the account into paid usage. If more
-services are needed later, put this API on the paid Starter plan ($25 range)
-and keep everything else free.
-
-## Monitoring checklist
-
-- **Render dashboard → service → Metrics**: the "Requests" graph should show
-  a steady ~1 request per few minutes, never flat for 15+ minutes.
-- **GitHub repo → Actions**: `Keep Render API warm` should show runs every
-  ~10 minutes; `Repository heartbeat` one green run per week.
-- **Supabase SQL editor**: the `cron.job_run_details` query above shows
-  recent successful schedules.
-- After any change to the Render service URL, update it in three places:
-  Vercel's `VITE_API_BASE_URL`, `supabase/keep_alive_cron.sql`, and the
-  `RENDER_HEALTH_URL` repository variable (or the default in the workflow).
+- `cron.job_run_details` shows `failed`: re-run the SQL file (v2 fixes the
+  plain-SQL/`perform` bug that failed every run in v1).
+- The self-test returns `error: ...`: the message names the cause — most
+  commonly pg_net not being available; enable it under Database → Extensions.
+- `select * from net._http_response order by id desc limit 5;` shows recent
+  HTTP results.
