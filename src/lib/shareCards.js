@@ -75,8 +75,9 @@ function amuSeal(x, y, size) {
   return `<image x="${x}" y="${y}" width="${size}" height="${size}" href="${AMU_LOGO}" preserveAspectRatio="xMidYMid meet"/>`;
 }
 
-function header(brand, fg, accent, number, x = 82, right = 998) {
-  return `${amuSeal(x - 4, 52, 58)}<text x="${x + 68}" y="84" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2.2" fill="${fg}" opacity=".9">${xml(brand)}</text><text x="${right}" y="84" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2" fill="${fg}" opacity=".72">${String(number).padStart(2, '0')} / 06</text>`;
+function header(brand, fg, accent, number, x = 82, right = 998, sealY = 52, sealSize = 58) {
+  const baseline = sealY + 32;
+  return `${amuSeal(x - 4, sealY, sealSize)}<text x="${x + 68}" y="${baseline}" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2.2" fill="${fg}" opacity=".9">${xml(brand)}</text><text x="${right}" y="${baseline}" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2" fill="${fg}" opacity=".72">${String(number).padStart(2, '0')} / 06</text>`;
 }
 
 function contributionPanel(note, palette, { x = 82, width = 916, maxChars = 56, maxDetail = 220 } = {}) {
@@ -127,7 +128,7 @@ export function makeCardSvg(note = {}, index = 0) {
   if (style === 0) {
     backdrop += `<rect width="18" height="1350" fill="${palette.accent}"/><rect x="54" y="54" width="972" height="1242" fill="none" stroke="${palette.accent}" stroke-opacity=".34"/>`;
     ornaments = `<path d="M82 143 H998" stroke="${palette.fg}" stroke-opacity=".25"/>`;
-    headerMarkup = header(palette.brand, palette.fg, palette.accent, style + 1);
+    headerMarkup = header(palette.brand, palette.fg, palette.accent, style + 1, 82, 998, 70);
   } else if (style === 1) {
     backdrop += `<rect x="0" y="0" width="1080" height="174" fill="#0A4936"/><rect x="0" y="174" width="18" height="1176" fill="${palette.accent}"/>`;
     ornaments = `<path d="M82 223 H998" stroke="${palette.fg}" stroke-opacity=".28"/>`;
@@ -139,7 +140,7 @@ export function makeCardSvg(note = {}, index = 0) {
   } else if (style === 3) {
     backdrop += `<rect x="54" y="54" width="972" height="1242" fill="none" stroke="${palette.accent}" stroke-width="1.5"/>`;
     ornaments = `<path d="M82 155 H998" stroke="${palette.accent}" stroke-opacity=".65"/>`;
-    headerMarkup = header(palette.brand, palette.fg, palette.accent, style + 1);
+    headerMarkup = header(palette.brand, palette.fg, palette.accent, style + 1, 82, 998, 70);
   } else if (style === 4) {
     backdrop += `<rect x="0" y="0" width="205" height="1350" fill="#064B37"/><rect x="205" y="0" width="7" height="1350" fill="${palette.accent}"/>`;
     ornaments = `${amuSeal(72, 52, 60)}<path d="M55 132 H150" stroke="${palette.accent}" stroke-opacity=".6"/><text x="102" y="200" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" letter-spacing="2.5" fill="#FBF8F0">STUDENT</text><text x="102" y="226" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" letter-spacing="2.5" fill="#FBF8F0">VOICE</text>`;
