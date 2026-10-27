@@ -1,0 +1,48 @@
+# Tier 2 keep-alive: GitHub Actions pings the Render API every 10 minutes,
+# offset from the Supabase pg_cron job (which fires at :00, :10, :20 ...) so
+# the two schedules interleave. Public repositories get free, unlimited
+# Actions minutes, so this runs around the clock.
+#
+# GitHub disables scheduled workflows after 60 days without repository
+# activity; .github/workflows/repo-heartbeat.yml commits a weekly stamp to
+# keep this workflow permanently enabled.
+#
+# Optional: set a repository variable RENDER_HEALTH_URL to override the URL
+# below (Settings -> Secrets and variables -> Actions -> Variables).
+
+name: Keep Render API warm
+
+on:
+  schedule:
+    - cron: '7,17,27,37,47,57 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-render-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Wake and verify the contribution API
+        env:
+          HEALTH_URL: ${{ vars.RENDER_HEALTH_URL }}
+        run: |
+          url="${HEALTH_URL:-https://mohtashim.onrender.com/api/health}"
+          echo "Pinging $url"
+          for attempt in 1 2 3; do
+            code="$(curl -sS -o /tmp/health.json -w '%{http_code}' --max-time 75 "$url" 2>/dev/null || echo 000)"
+            echo "attempt ${attempt}: HTTP ${code} $(cat /tmp/health.json 2>/dev/null || true)"
+            if [ "$code" = "200" ]; then
+              echo "API is warm and healthy."
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep 20; fi
+          done
+          echo "::warning title=Keep-alive ping failed::${url} did not return HTTP 200 after 3 attempts (this leaves the previous tier's window to hold)."
+          exit 0

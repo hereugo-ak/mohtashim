@@ -1,7 +1,7 @@
 
 import { FACULTIES } from './data/faculties.js';
 import { cardFacultyName, makeCardSvg, variants } from './lib/shareCards.js';
-import { saveContribution } from './lib/contributionRepository.js';
+import { saveContribution, pingBackend } from './lib/contributionRepository.js';
 import { initMotion } from './lib/motion.js';
 
 (()=>{
@@ -41,6 +41,11 @@ $('downloadCard').addEventListener('click',async()=>{if(!lastNote)return;try{con
 const CAMPAIGN_URL='https://mohtashimforcourtmember.vercel.app';
 $('sharePrompt').addEventListener('click',async()=>{if(!lastNote)return;const faculty=cardFacultyName(lastNote);const idea=String(lastNote.details||'').trim();const topic=lastNote.topic||'Student representation';const message=`I made my contribution for making this *${faculty}* faculty better.\n\n*Topic: ${topic}*\n${idea?`\n*My words:*\n“${idea}”\n`:''}\nEvery faculty deserves to be heard. Add your perspective, then invite someone from another faculty to do the same.\n${CAMPAIGN_URL}`;try{const png=await cardPng();const file=new File([png],'amu-student-voice.png',{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Make room for every voice',text:message});return}}catch(e){if(e&&e.name==='AbortError')return}try{if(navigator.share){await navigator.share({title:'Make room for every voice',text:message,url:CAMPAIGN_URL});return}}catch(e){if(e&&e.name==='AbortError')return}try{await navigator.clipboard.writeText(message+'\n'+CAMPAIGN_URL);showToast('Your message and campaign link were copied.')}catch(e){showToast('Save the card, then share it from your device.')}});
 // Personal identity fields are never passed to the share-card SVG renderer.
+// Tier 3 keep-alive: warm the API while a visitor is on the page so a submit
+// never hits a cold start. Pings pause when the tab is hidden.
+const warmPing=()=>{if(document.visibilityState==='visible')pingBackend(8000).catch(()=>{})};
+warmPing();setInterval(warmPing,240000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')warmPing()});
 initMotion({ modal, mobileCta });
 pickFaculty('agriculture');
 })();

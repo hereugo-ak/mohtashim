@@ -131,6 +131,7 @@ Therefore the database accepts anonymous contributions intentionally. Faculty, t
 
 ## Operational notes
 
+- The Render free tier spins down after 15 idle minutes. The multi-tier keep-alive system (Supabase pg_cron, GitHub Actions, browser warm-up) keeps the API warm; see `KEEP_ALIVE.md` for setup and verification.
 - There is no admin dashboard or public read endpoint in this version. Review responses from the Supabase Dashboard only.
 - Choose who may access the Supabase project and define a retention/deletion policy before launch.
 - The honeypot and IP-derived HMAC rate limiter reduce basic abuse but are not a perfect bot defense. If spam becomes material, add a managed challenge such as Turnstile.
