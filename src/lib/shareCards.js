@@ -80,21 +80,29 @@ function header(brand, fg, accent, number, x = 82, right = 998, sealY = 52, seal
   return `${amuSeal(x - 4, sealY, sealSize)}<text x="${x + 68}" y="${baseline}" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2.2" fill="${fg}" opacity=".9">${xml(brand)}</text><text x="${right}" y="${baseline}" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2" fill="${fg}" opacity=".72">${String(number).padStart(2, '0')} / 06</text>`;
 }
 
-function contributionPanel(note, palette, { x = 82, width = 916, maxChars = 56, maxDetail = 220 } = {}) {
+function contributionPanel(note, palette, { x = 82, width = 916, maxChars = 56 } = {}) {
   const { ink, accent, panel, panelInk } = palette;
   const right = x + width;
   const innerX = x + 36;
   const topic = normalizeText(note.topic) || 'Student representation';
-  const details = excerptText(note.details, maxDetail);
+  const contributor = normalizeText(note.name);
+  const named = !note.anonymous && Boolean(contributor);
+  const details = excerptText(note.details, named ? (width < 800 ? 130 : 170) : (width < 800 ? 156 : 220));
   const lineMax = Math.max(28, Math.floor(maxChars));
-  const background = `<rect x="${x}" y="680" width="${width}" height="410" fill="${panel}"/><rect x="${x}" y="680" width="6" height="410" fill="${accent}"/><path d="M${innerX} 815 H${right - 36}" stroke="${ink}" stroke-opacity=".22"/>`;
-  const topicMarkup = `<text x="${innerX}" y="728" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="3" fill="${accent}">SELECTED TOPIC</text><text x="${innerX}" y="779" font-family="Arial,Helvetica,sans-serif" font-size="${width < 800 ? 24 : 29}" font-weight="600" fill="${panelInk}">${xml(topic)}</text>`;
+  const quoteLines = named ? 3 : 4;
+  const background = `<rect x="${x}" y="665" width="${width}" height="440" fill="${panel}"/><rect x="${x}" y="665" width="6" height="440" fill="${accent}"/><path d="M${innerX} 795 H${right - 36}" stroke="${ink}" stroke-opacity=".22"/>`;
+  const topicMarkup = `<text x="${innerX}" y="712" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="3" fill="${accent}">SELECTED TOPIC</text><text x="${innerX}" y="760" font-family="Arial,Helvetica,sans-serif" font-size="${width < 800 ? 24 : 29}" font-weight="600" fill="${panelInk}">${xml(topic)}</text>`;
+  const identityRule = `<path d="M${innerX} 1022 H${innerX + 84}" stroke="${accent}" stroke-width="1.5"/>`;
+  const className = excerptText(normalizeText(note.className), 40);
+  const signature = named
+    ? `${identityRule}<text x="${innerX}" y="1058" font-family="Georgia,serif" font-size="${width < 800 ? 26 : 30}" fill="${panelInk}">${xml(contributor ? excerptText(contributor, 46) : '')}</text><text x="${innerX}" y="1086" font-family="Arial,Helvetica,sans-serif" font-size="12.5" fill="${panelInk}" opacity=".8">${className ? xml(className) : ''}<tspan dx="${className ? 9 : 0}" fill="${accent}" font-size="11" letter-spacing="1.8">SIGNED OPENLY</tspan></text>`
+    : `${identityRule}<text x="${innerX}" y="1058" font-family="Arial,Helvetica,sans-serif" font-size="12" letter-spacing="1.6" fill="${panelInk}" opacity=".68">SHARED ANONYMOUSLY<tspan dx="8" fill="${accent}" opacity="1">·</tspan><tspan dx="8">IDENTITY PROTECTED</tspan></text>`;
   if (!details) {
-    return `${background}${topicMarkup}<text x="${innerX}" y="865" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="3" fill="${accent}">THE PRINCIPLE</text><text x="${innerX}" y="925" font-family="Georgia,serif" font-size="${width < 800 ? 30 : 35}" fill="${panelInk}">Every faculty deserves</text><text x="${innerX}" y="974" font-family="Georgia,serif" font-size="${width < 800 ? 30 : 35}" font-style="italic" fill="${panelInk}">to be heard.</text>`;
+    return `${background}${topicMarkup}<text x="${innerX}" y="838" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="3" fill="${accent}">THE PRINCIPLE</text><text x="${innerX}" y="886" font-family="Georgia,serif" font-size="${width < 800 ? 30 : 35}" fill="${panelInk}">Every faculty deserves</text><text x="${innerX}" y="934" font-family="Georgia,serif" font-size="${width < 800 ? 30 : 35}" font-style="italic" fill="${panelInk}">to be heard.</text>${signature}`;
   }
-  const wrapped = wrapText(details, lineMax, 4);
-  const quote = svgMultiline(wrapped, { x: innerX, y: 923, size: width < 800 ? 23 : 27, lineGap: width < 800 ? 34 : 38, fill: panelInk, italic: true });
-  return `${background}${topicMarkup}<text x="${innerX}" y="865" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="3" fill="${accent}">YOUR WORDS</text><text x="${innerX - 18}" y="918" font-family="Georgia,serif" font-size="42" fill="${accent}" opacity=".75">“</text>${quote}`;
+  const wrapped = wrapText(details, lineMax, quoteLines);
+  const quote = svgMultiline(wrapped, { x: innerX, y: 886, size: width < 800 ? 23 : 27, lineGap: width < 800 ? 34 : 38, fill: panelInk, italic: true });
+  return `${background}${topicMarkup}<text x="${innerX}" y="838" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="3" fill="${accent}">YOUR WORDS</text><text x="${innerX - 18}" y="881" font-family="Georgia,serif" font-size="42" fill="${accent}" opacity=".75">“</text>${quote}${signature}`;
 }
 
 function footer(fg, accent, brand = 'MOHTASHIM EJAZ SANI · UNIVERSITY COURT', x = 82, right = 998) {
@@ -157,7 +165,7 @@ export function makeCardSvg(note = {}, index = 0) {
   const lastTitleY = titleY + (lines.length - 1) * (marginStyle ? 72 : 82);
   const suffix = `<text x="${contentX}" y="${lastTitleY + 80}" font-family="Georgia,serif" font-size="${marginStyle ? 35 : 40}" font-style="italic" fill="${palette.accent}">faculty better.</text>`;
   const message = `<text x="${contentX}" y="242" font-family="Arial,Helvetica,sans-serif" font-size="16" letter-spacing="3.5" fill="${palette.accent}">I MADE MY CONTRIBUTION</text><text x="${contentX}" y="310" font-family="Georgia,serif" font-size="39" font-style="italic" fill="${topFg}" opacity=".84">for making this</text>${facultyTitle}${suffix}`;
-  const panel = contributionPanel(note, { ink: palette.fg, accent: palette.accent, panel: palette.panel, panelInk: palette.panelFg }, { x: contentX, width: contentWidth, maxChars: maxLineChars, maxDetail: detailMax });
+  const panel = contributionPanel(note, { ink: palette.fg, accent: palette.accent, panel: palette.panel, panelInk: palette.panelFg }, { x: contentX, width: contentWidth, maxChars: maxLineChars });
   const footerMarkup = marginStyle
     ? footer(palette.fg, palette.accent, 'MOHTASHIM EJAZ SANI · UNIVERSITY COURT', 254, 998)
     : footer(style === 5 ? '#064B37' : palette.fg, palette.accent);
@@ -165,6 +173,8 @@ export function makeCardSvg(note = {}, index = 0) {
   const svg = `${backdrop}${ornaments}${headerMarkup}${rule}${message}${panel}${footerMarkup}`;
   const topic = normalizeText(note.topic) || 'Student representation';
   const contribution = normalizeText(note.details);
-  const ariaDescription = contribution ? `Contribution: ${excerptText(contribution, detailMax)}` : 'Every faculty deserves to be heard.';
+  const named = !note.anonymous && Boolean(normalizeText(note.name));
+  const ariaExcerpt = named ? (marginStyle ? 130 : 170) : (marginStyle ? 156 : 220);
+  const ariaDescription = contribution ? `Contribution: ${excerptText(contribution, ariaExcerpt)}` : 'Every faculty deserves to be heard.';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" role="img" aria-label="Share card for ${xml(faculty)}. Selected topic: ${xml(topic)}. ${xml(ariaDescription)}">${svg}</svg>`;
 }

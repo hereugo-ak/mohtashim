@@ -27,7 +27,7 @@ $('newContribution').addEventListener('click',()=>{const form=$('voiceForm');for
 function renderContributionReceipt(note){
   $('receiptFaculty').textContent=cardFacultyName(note);
   $('receiptTopic').textContent=note.topic||'Student representation';
-  $('receiptPrivacy').textContent=note.anonymous?'Identity kept private':'Name and class kept off card';
+  $('receiptPrivacy').textContent=note.anonymous?'Identity kept private':'Signed openly on the card';
   const hasDetails=Boolean(String(note.details||'').trim());
   $('receiptDetails').textContent=hasDetails?String(note.details).trim():'';
   $('receiptWordsBlock').hidden=!hasDetails;

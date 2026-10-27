@@ -48,6 +48,29 @@ test('share-card user text is XML-escaped and descriptions are sized for the car
   assert.doesNotMatch(svg, /<script/i);
 });
 
+test('named contributions sign the card openly; anonymous ones never leak identity', () => {
+  const base = {
+    faculty: 'agriculture',
+    facultyName: 'Agricultural Sciences',
+    topic: 'Facilities & infrastructure',
+    details: 'The reading room needs longer evening hours and accessible desk space.',
+  };
+  for (let index = 0; index < variants.length; index += 1) {
+    const named = makeCardSvg({ ...base, name: 'Zoya Anwer', className: 'B.Sc. (Hons) Agriculture, Final Year', anonymous: false }, index);
+    assert.match(named, /Zoya Anwer/);
+    assert.match(named, /B.Sc. \(Hons\) Agriculture, Final Year/);
+    assert.match(named, /SIGNED OPENLY/);
+    assert.doesNotMatch(named, /SHARED ANONYMOUSLY/);
+
+    const anonymous = makeCardSvg({ ...base, name: 'Zoya Anwer', className: 'B.Sc. (Hons) Agriculture, Final Year', anonymous: true }, index);
+    assert.doesNotMatch(anonymous, /Zoya Anwer/);
+    assert.doesNotMatch(anonymous, /Agriculture, Final Year/);
+    assert.match(anonymous, /SHARED ANONYMOUSLY/);
+    assert.match(anonymous, /IDENTITY PROTECTED/);
+    assert.doesNotMatch(anonymous, /SIGNED OPENLY/);
+  }
+});
+
 test('faculty names resolve cleanly for the share-card message', () => {
   assert.equal(cardFacultyName({ facultyName: 'Agricultural Sciences' }), 'Agricultural Sciences');
   assert.equal(cardFacultyName({ facultyName: 'Community Science' }), 'Community Science');
