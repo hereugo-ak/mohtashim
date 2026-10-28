@@ -1,6 +1,6 @@
 
 import { FACULTIES } from './data/faculties.js';
-import { cardFacultyName, makeCardSvg, variants } from './lib/shareCards.js';
+import { cardFacultyName, designNames, makeCardSvg, variantKey } from './lib/shareCards.js';
 import { saveContribution, pingBackend } from './lib/contributionRepository.js';
 import { igGlyph, qrSvg, waGlyph, WHATSAPP_INVITE_BASE, INSTAGRAM_LINK } from './lib/social.js';
 import { initMotion } from './lib/motion.js';
@@ -34,8 +34,8 @@ function renderContributionReceipt(note){
   $('receiptWordsBlock').hidden=!hasDetails;
   $('receiptEmpty').hidden=hasDetails;
 }
-function renderShareCard(note,index){activeVariant=(index+variants.length)%variants.length;$('variantLabel').textContent=String(activeVariant+1).padStart(2,'0')+' / 06 · '+variants[activeVariant].name;$('shareCard').innerHTML=makeCardSvg(note,activeVariant);$('shareCard').querySelector('svg').classList.add('share-card-svg')}
-$('changeCard').addEventListener('click',()=>{if(!lastNote)return;let next=activeVariant;while(next===activeVariant)next=Math.floor(Math.random()*variants.length);renderShareCard(lastNote,next)});
+function renderShareCard(note,index){activeVariant=((index%2)+2)%2;const names=designNames(variantKey(note));$('variantLabel').textContent=String(activeVariant+1).padStart(2,'0')+' / 02 · '+names[activeVariant];$('shareCard').innerHTML=makeCardSvg(note,activeVariant);$('shareCard').querySelector('svg').classList.add('share-card-svg')}
+$('changeCard').addEventListener('click',()=>{if(!lastNote)return;renderShareCard(lastNote,(activeVariant+1)%2)});
 function svgBlob(){return new Blob([makeCardSvg(lastNote,activeVariant)],{type:'image/svg+xml;charset=utf-8'})}
 function cardPng(){return new Promise((resolve,reject)=>{const blob=svgBlob(),url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1350;const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,1080,1350);URL.revokeObjectURL(url);canvas.toBlob(png=>png?resolve(png):reject(new Error('PNG export failed')),'image/png')}catch(e){URL.revokeObjectURL(url);reject(e)}};img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Card render failed'))};img.src=url})}
 $('downloadCard').addEventListener('click',async()=>{if(!lastNote)return;try{const png=await cardPng(),url=URL.createObjectURL(png),a=document.createElement('a');a.href=url;a.download='make-room-for-every-voice-'+lastNote.faculty.toLowerCase()+'.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);showToast('Your share card is ready.')}catch(e){showToast('Could not save the card on this device. Try the share option.')}});

@@ -1,4 +1,5 @@
-// Six editorial share-card directions. User-provided strings are escaped before entering SVG.
+// Faculty-specific share-card sets: two designs per faculty.
+// User-provided strings are escaped before entering SVG.
 import { AMU_LOGO } from './amuLogo.js';
 
 export function xml(value) {
@@ -8,8 +9,12 @@ export function xml(value) {
 }
 
 export const variants = Object.freeze([
-  { name: 'The Manifesto' }, { name: 'The Field Note' }, { name: 'The Register' },
-  { name: 'The Declaration' }, { name: 'The Margin' }, { name: 'The Collective' },
+  { faculty: 'agriculture', name: 'The Furrow' },
+  { faculty: 'agriculture', name: 'The Field Ledger' },
+  { faculty: 'community', name: 'The Commons' },
+  { faculty: 'community', name: 'The Weave' },
+  { faculty: 'theology', name: 'The Illuminated' },
+  { faculty: 'theology', name: 'The Study' },
 ]);
 
 export function cardFacultyName(note = {}) {
@@ -19,6 +24,17 @@ export function cardFacultyName(note = {}) {
   if (/community/i.test(short)) return 'Community Science';
   if (/theology/i.test(short)) return 'Theology';
   return short || 'Your Faculty';
+}
+
+export function variantKey(note = {}) {
+  const name = cardFacultyName(note);
+  if (name === 'Community Science') return 'community';
+  if (name === 'Theology') return 'theology';
+  return 'agriculture';
+}
+
+export function designNames(key = 'agriculture') {
+  return variants.filter((variant) => variant.faculty === key).map((variant) => variant.name);
 }
 
 function facultyLines(name) {
@@ -70,14 +86,109 @@ function svgMultiline(lines, { x, y, size = 27, lineGap = 37, fill = '#17231D', 
   return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="${family}" font-size="${size}" font-weight="${weight}"${italic ? ' font-style="italic"' : ''}${letterSpacing ? ` letter-spacing="${letterSpacing}"` : ''} fill="${fill}">${lines.map((line, index) => `<tspan x="${x}" dy="${index === 0 ? 0 : lineGap}">${xml(line)}</tspan>`).join('')}</text>`;
 }
 
-function amuSeal(x, y, size) {
+function amuSeal(x, y, size, backing = false) {
   // Square box + meet: the inscribed circular emblem stays perfectly round.
-  return `<image x="${x}" y="${y}" width="${size}" height="${size}" href="${AMU_LOGO}" preserveAspectRatio="xMidYMid meet"/>`;
+  // On dark skins the seal needs a paper medallion behind it to stay visible.
+  const disc = backing ? `<circle cx="${x + size / 2}" cy="${y + size / 2}" r="${size * 0.57}" fill="#F6F3EB"/>` : '';
+  return `${disc}<image x="${x}" y="${y}" width="${size}" height="${size}" href="${AMU_LOGO}" preserveAspectRatio="xMidYMid meet"/>`;
 }
 
-function header(brand, fg, accent, number, x = 82, right = 998, sealY = 52, sealSize = 58) {
-  const baseline = sealY + 32;
-  return `${amuSeal(x - 4, sealY, sealSize)}<text x="${x + 68}" y="${baseline}" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2.2" fill="${fg}" opacity=".9">${xml(brand)}</text><text x="${right}" y="${baseline}" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2" fill="${fg}" opacity=".72">${String(number).padStart(2, '0')} / 06</text>`;
+// ---------- ornament vocabulary (drawn, not decorative clip-art) ----------
+
+function sunMark(cx, cy, r, color) {
+  const rays = [];
+  for (let a = 0; a < 12; a += 1) {
+    const ang = (Math.PI * 2 * a) / 12 - Math.PI / 2;
+    const x1 = cx + Math.cos(ang) * (r + 18);
+    const y1 = cy + Math.sin(ang) * (r + 18);
+    const x2 = cx + Math.cos(ang) * (r + 36);
+    const y2 = cy + Math.sin(ang) * (r + 36);
+    rays.push(`<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} L${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="${color}" stroke-width="1.2" opacity=".5"/>`);
+  }
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" opacity=".92"/><circle cx="${cx}" cy="${cy}" r="${r + 9}" fill="none" stroke="${color}" stroke-width="1" opacity=".5"/>${rays.join('')}`;
+}
+
+function fieldBands(fg) {
+  // Layered field horizons, quiet enough to sit under type.
+  return `<path d="M82 566 Q320 548 560 566 T998 562 V655 H82 Z" fill="${fg}" opacity=".05"/><path d="M82 594 Q340 578 600 594 T998 590 V655 H82 Z" fill="${fg}" opacity=".038"/><path d="M82 622 Q360 608 620 622 T998 618 V655 H82 Z" fill="${fg}" opacity=".028"/>`;
+}
+
+function furrowDashes(x0, x1, y0, y1, step, color, opacity) {
+  const rows = [];
+  for (let y = y0; y <= y1; y += step) rows.push(`<path d="M${x0} ${y} H${x1}" stroke="${color}" stroke-width="1" stroke-dasharray="9 7" opacity="${opacity}"/>`);
+  return rows.join('');
+}
+
+function ledgerRules(x0, x1, y0, y1, step, color, opacity) {
+  const rows = [];
+  for (let y = y0; y <= y1; y += step) rows.push(`<path d="M${x0} ${y} H${x1}" stroke="${color}" stroke-width="1" opacity="${opacity}"/><path d="M${x0} ${y - 4} V${y + 4}" stroke="${color}" stroke-width="1.2" opacity="${opacity + 0.06}"/><path d="M${x1} ${y - 4} V${y + 4}" stroke="${color}" stroke-width="1.2" opacity="${opacity + 0.06}"/>`);
+  return rows.join('');
+}
+
+function dotGridDef(id, fill) {
+  return `<defs><pattern id="${id}" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.15" fill="${fill}"/></pattern></defs>`;
+}
+
+function weaveDef(id, c1, c2) {
+  return `<defs><pattern id="${id}" width="36" height="14" patternUnits="userSpaceOnUse"><rect width="36" height="14" fill="${c2}" opacity=".26"/><rect width="18" height="7" fill="${c1}" opacity=".85"/><rect x="18" y="7" width="18" height="7" fill="${c1}" opacity=".85"/></pattern></defs>`;
+}
+
+function weaveBand(x, y, w, id, line) {
+  return `<rect x="${x}" y="${y}" width="${w}" height="14" fill="url(#${id})"/><path d="M${x} ${y - 4} H${x + w}" stroke="${line}" stroke-width="1" opacity=".5"/><path d="M${x} ${y + 18} H${x + w}" stroke="${line}" stroke-width="1" opacity=".5"/>`;
+}
+
+function rings(cx, cy, r, color, opacity = .8) {
+  return `<circle cx="${cx - r - 8}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="1.6" opacity="${opacity}"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="1.6" opacity="${opacity}"/><circle cx="${cx + r + 8}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="1.6" opacity="${opacity}"/>`;
+}
+
+function star8(cx, cy, r, color, opacity = .9) {
+  return `<rect x="${cx - r}" y="${cy - r}" width="${r * 2}" height="${r * 2}" fill="none" stroke="${color}" stroke-width="1.2" opacity="${opacity}"/><rect x="${cx - r}" y="${cy - r}" width="${r * 2}" height="${r * 2}" transform="rotate(45 ${cx} ${cy})" fill="none" stroke="${color}" stroke-width="1.2" opacity="${opacity}"/><circle cx="${cx}" cy="${cy}" r="${r * 0.26}" fill="${color}" opacity="${opacity}"/>`;
+}
+
+function pointedArch(cx, yb, halfW, height, color, opacity = .55) {
+  const x0 = cx - halfW;
+  const x1 = cx + halfW;
+  const ym = yb - height * 0.62;
+  const apex = yb - height;
+  const drop = height * 0.16;
+  return `<path d="M${x0} ${yb} V${ym} Q${x0} ${apex + drop} ${cx} ${apex} Q${x1} ${apex + drop} ${x1} ${ym} V${yb}" fill="none" stroke="${color}" stroke-width="1.5" opacity="${opacity}"/>`;
+}
+
+function diamond(x, y, s, fill, opacity = 1) {
+  return `<rect x="${x - s / 2}" y="${y - s / 2}" width="${s}" height="${s}" transform="rotate(45 ${x} ${y})" fill="${fill}" opacity="${opacity}"/>`;
+}
+
+function diamondChain(x0, x1, y, color, opacity = .55) {
+  const links = [];
+  for (let x = x0; x <= x1; x += 30) links.push(diamond(x, y, 5, color, opacity));
+  return links.join('');
+}
+
+function cornerMarks(m, color, opacity = .5) {
+  const L = (x, y, dx, dy) => `<path d="M${x} ${y + dy * 22} V${y} H${x + dx * 22}" stroke="${color}" stroke-width="1.2" opacity="${opacity}" fill="none"/>`;
+  return `${L(m, m, 1, 1)}${L(1080 - m, m, -1, 1)}${L(m, 1350 - m, 1, -1)}${L(1080 - m, 1350 - m, -1, -1)}`;
+}
+
+// ---------- shared content blocks ----------
+
+function masthead(skin, number) {
+  const { fg, accent } = skin;
+  return `${amuSeal(82, 44, 56, skin.mode === 'dark')}<text x="152" y="72" font-family="Arial,Helvetica,sans-serif" font-size="13.5" letter-spacing="2.6" fill="${fg}">ALIGARH MUSLIM UNIVERSITY</text><text x="152" y="96" font-family="Arial,Helvetica,sans-serif" font-size="10" letter-spacing="2" fill="${fg}" opacity=".62">EST. 1875 · STUDENT-LED</text><text x="998" y="70" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" letter-spacing="2.2" fill="${fg}" opacity=".72">STUDENT CONCERN</text><text x="998" y="96" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="13" letter-spacing="1.6" fill="${accent}">No. ${String(number + 1).padStart(2, '0')} / 02</text>`;
+}
+
+function candidatePlate(skin) {
+  const { fg, accent } = skin;
+  return `<path d="M82 134 H998" stroke="${accent}" stroke-width="1.2" stroke-opacity=".75"/><text x="82" y="228" font-family="Arial,Helvetica,sans-serif" font-size="11" letter-spacing="3.2" fill="${accent}">PRESENTED BY</text><text x="82" y="278" font-family="Georgia,serif" font-size="47" fill="${fg}">Mohtashim Ejaz Sani</text><rect x="82" y="296" width="7" height="7" fill="${accent}"/><text x="100" y="304" font-family="Arial,Helvetica,sans-serif" font-size="12" letter-spacing="2.4" fill="${fg}" opacity=".88">CANDIDATE · UNIVERSITY COURT MEMBER</text>`;
+}
+
+function leftFacultyZone(skin, lines, kicker, motif) {
+  const { fg, accent } = skin;
+  return `<text x="82" y="382" font-family="Arial,Helvetica,sans-serif" font-size="13" letter-spacing="3" fill="${accent}">${kicker}</text>${svgMultiline(lines, { x: 78, y: 464, size: 76, lineGap: 82, fill: fg, family: 'Arial,Helvetica,sans-serif', weight: 800, letterSpacing: -2.3 })}<text x="82" y="604" font-family="Georgia,serif" font-size="33" font-style="italic" fill="${fg}" opacity=".82">and the Court should hear it.</text>${motif}`;
+}
+
+function centeredFacultyZone(skin, line, kicker, motif) {
+  const { fg, accent } = skin;
+  return `<text x="540" y="352" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" letter-spacing="3" fill="${accent}">${kicker}</text>${svgMultiline([line], { x: 540, y: 486, size: 100, fill: fg, family: 'Arial,Helvetica,sans-serif', weight: 800, letterSpacing: -2.5, anchor: 'middle' })}<text x="540" y="556" text-anchor="middle" font-family="Georgia,serif" font-size="33" font-style="italic" fill="${fg}" opacity=".82">and the Court should hear it.</text>${motif}`;
 }
 
 function contributionPanel(note, palette, { x = 82, width = 916, maxChars = 56 } = {}) {
@@ -105,76 +216,106 @@ function contributionPanel(note, palette, { x = 82, width = 916, maxChars = 56 }
   return `${background}${topicMarkup}<text x="${innerX}" y="838" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="3" fill="${accent}">YOUR WORDS</text><text x="${innerX - 18}" y="881" font-family="Georgia,serif" font-size="42" fill="${accent}" opacity=".75">“</text>${quote}${signature}`;
 }
 
-function footer(fg, accent, brand = 'MOHTASHIM EJAZ SANI · UNIVERSITY COURT', x = 82, right = 998) {
-  return `<path d="M${x} 1150 H${right}" stroke="${accent}" stroke-width="1" stroke-opacity=".72"/><text x="${x}" y="1200" font-family="Arial,Helvetica,sans-serif" font-size="15" letter-spacing="2.8" fill="${fg}" opacity=".82">MAKE ROOM FOR EVERY VOICE</text><text x="${right}" y="1200" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="15" letter-spacing=".6" fill="${fg}" opacity=".85">${brand}</text>`;
+function footerLine(skin) {
+  const { fg, accent } = skin;
+  return `<path d="M82 1148 H998" stroke="${accent}" stroke-width="1" stroke-opacity=".72"/><text x="82" y="1196" font-family="Arial,Helvetica,sans-serif" font-size="15" letter-spacing="2.8" fill="${fg}" opacity=".82">EVERY FACULTY DESERVES TO BE HEARD</text><text x="998" y="1196" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" letter-spacing="1.4" fill="${fg}" opacity=".62">MOHTASHIMFORCOURTMEMBER.VERCEL.APP</text>`;
 }
 
+// ---------- faculty palettes (campaign green/gold/paper as the anchor) ----------
+
+const SKINS = {
+  agriculture: [
+    { mode: 'dark', bg: '#05422B', fg: '#F7F1E2', accent: '#D8BB73', panel: '#0A5642', panelFg: '#F5EFE0' },
+    { mode: 'light', bg: '#F3EEE1', fg: '#1B3A2D', accent: '#A98734', panel: '#E9E2CF', panelFg: '#1B3A2D' },
+  ],
+  community: [
+    { mode: 'dark', bg: '#0B4638', fg: '#F8F2E6', accent: '#D8BB73', accent2: '#C96F4A', panel: '#0F5447', panelFg: '#F5EFE1' },
+    { mode: 'light', bg: '#F5F0E6', fg: '#1E3A2E', accent: '#B4552D', accent2: '#A98734', panel: '#EAE1D2', panelFg: '#1E3A2D' },
+  ],
+  theology: [
+    { mode: 'dark', bg: '#0A2B1F', fg: '#FAF4E6', accent: '#E0C68C', panel: '#0E3A2B', panelFg: '#F8F2E3' },
+    { mode: 'light', bg: '#F1ECDF', fg: '#142B22', accent: '#B99A58', panel: '#E7E0CE', panelFg: '#142B22' },
+  ],
+};
+
+const KICKERS = {
+  agriculture: 'FROM THE FIELDS TO THE COURT',
+  community: 'FROM THE COMMONS TO THE COURT',
+  theology: 'FROM THE STUDY TO THE COURT',
+};
+
+// ---------- the six designs ----------
+
+function designAgricultureFurrow(note, skin, number) {
+  const { bg, fg, accent } = skin;
+  const backdrop = `<rect width="1080" height="1350" fill="${bg}"/>${furrowDashes(82, 998, 396, 560, 28, fg, .09)}${fieldBands(fg)}`;
+  const motif = sunMark(850, 420, 56, accent);
+  const zone = leftFacultyZone(skin, facultyLines('Agricultural Sciences'), KICKERS.agriculture, motif);
+  const divider = `<path d="M82 648 H998" stroke="${fg}" stroke-width="1" stroke-dasharray="9 7" opacity=".28"/>${diamond(540, 648, 8, accent)}`;
+  return `${backdrop}${masthead(skin, number)}${candidatePlate(skin)}${zone}${divider}${contributionPanel(note, { ink: fg, accent, panel: skin.panel, panelInk: skin.panelFg }, { x: 82, width: 916, maxChars: 56 })}${footerLine(skin)}`;
+}
+
+function designAgricultureLedger(note, skin, number) {
+  const { bg, fg, accent } = skin;
+  const backdrop = `<rect width="1080" height="1350" fill="${bg}"/><rect width="1080" height="10" fill="${accent}"/>${cornerMarks(46, fg)}${ledgerRules(82, 998, 396, 560, 28, fg, .07)}`;
+  const motif = `<circle cx="880" cy="470" r="46" fill="none" stroke="${accent}" stroke-width="1.4" opacity=".6"/><circle cx="880" cy="470" r="37" fill="none" stroke="${accent}" stroke-width="1" opacity=".4"/>`;
+  const zone = leftFacultyZone(skin, facultyLines('Agricultural Sciences'), KICKERS.agriculture, motif);
+  const divider = `<path d="M82 643 H998" stroke="${accent}" stroke-width="1" opacity=".55"/><path d="M300 655 H780" stroke="${accent}" stroke-width="1" opacity=".4"/>${diamond(540, 649, 7, accent)}`;
+  return `${backdrop}${masthead(skin, number)}${candidatePlate(skin)}${zone}${divider}${contributionPanel(note, { ink: fg, accent, panel: skin.panel, panelInk: skin.panelFg }, { x: 82, width: 916, maxChars: 56 })}${footerLine(skin)}`;
+}
+
+function designCommunityCommons(note, skin, number) {
+  const { bg, fg, accent, accent2 } = skin;
+  const backdrop = `<rect width="1080" height="1350" fill="${bg}"/>${dotGridDef('commonsDots', fg)}<rect x="82" y="336" width="916" height="224" fill="url(#commonsDots)" opacity=".12"/>`;
+  const motif = rings(866, 455, 44, accent, .75);
+  const zone = leftFacultyZone(skin, facultyLines('Community Science'), KICKERS.community, motif);
+  const divider = `${weaveDef('commonsWeave', accent, accent2)}${weaveBand(82, 640, 916, 'commonsWeave', fg)}`;
+  return `${backdrop}${masthead(skin, number)}${candidatePlate(skin)}${zone}${divider}${contributionPanel(note, { ink: fg, accent, panel: skin.panel, panelInk: skin.panelFg }, { x: 82, width: 916, maxChars: 56 })}${footerLine(skin)}`;
+}
+
+function designCommunityWeave(note, skin, number) {
+  const { bg, fg, accent, accent2 } = skin;
+  const backdrop = `${weaveDef('weaveTop', accent, accent2)}<rect width="1080" height="1350" fill="${bg}"/><rect x="0" y="0" width="1080" height="18" fill="url(#weaveTop)"/><path d="M0 22 H1080" stroke="${accent}" stroke-width="1" opacity=".5"/>${dotGridDef('weaveDots', fg)}<rect x="82" y="336" width="916" height="224" fill="url(#weaveDots)" opacity=".1"/>`;
+  const motif = `<circle cx="880" cy="468" r="108" fill="none" stroke="${accent}" stroke-width="1.2" opacity=".32"/><circle cx="880" cy="468" r="72" fill="none" stroke="${accent}" stroke-width="1.2" opacity=".24"/><circle cx="880" cy="468" r="36" fill="none" stroke="${accent}" stroke-width="1.2" opacity=".18"/>`;
+  const zone = leftFacultyZone(skin, facultyLines('Community Science'), KICKERS.community, motif);
+  const divider = weaveBand(82, 640, 916, 'weaveTop', accent);
+  return `${backdrop}${masthead(skin, number)}${candidatePlate(skin)}${zone}${divider}${contributionPanel(note, { ink: fg, accent, panel: skin.panel, panelInk: skin.panelFg }, { x: 82, width: 916, maxChars: 56 })}${footerLine(skin)}`;
+}
+
+function designTheologyIlluminated(note, skin, number) {
+  const { bg, fg, accent } = skin;
+  const backdrop = `<rect width="1080" height="1350" fill="${bg}"/><rect x="40" y="40" width="1000" height="1270" fill="none" stroke="${accent}" stroke-width="1.4" opacity=".8"/><rect x="52" y="52" width="976" height="1246" fill="none" stroke="${accent}" stroke-width="1" opacity=".4"/>${diamond(40, 40, 8, accent, .9)}${diamond(1040, 40, 8, accent, .9)}${diamond(40, 1310, 8, accent, .9)}${diamond(1040, 1310, 8, accent, .9)}`;
+  const motif = `${star8(540, 92, 24, accent, .85)}${pointedArch(540, 600, 400, 230, accent, .5)}`;
+  const zone = centeredFacultyZone(skin, 'THEOLOGY', KICKERS.theology, motif);
+  const divider = `${diamondChain(300, 780, 648, accent)}`;
+  return `${backdrop}${masthead(skin, number)}${candidatePlate(skin)}${zone}${divider}${contributionPanel(note, { ink: fg, accent, panel: skin.panel, panelInk: skin.panelFg }, { x: 82, width: 916, maxChars: 56 })}${footerLine(skin)}`;
+}
+
+function designTheologyStudy(note, skin, number) {
+  const { bg, fg, accent } = skin;
+  const backdrop = `<rect width="1080" height="1350" fill="${bg}"/><rect x="46" y="46" width="988" height="1258" fill="none" stroke="${accent}" stroke-width="1.2" opacity=".65"/>`;
+  const motif = `${pointedArch(540, 600, 400, 230, accent, .38)}`;
+  const zone = centeredFacultyZone(skin, 'THEOLOGY', KICKERS.theology, motif);
+  const divider = `<path d="M82 648 H460" stroke="${accent}" stroke-width="1" opacity=".55"/><path d="M620 648 H998" stroke="${accent}" stroke-width="1" opacity=".55"/>${diamond(540, 648, 7, accent)}`;
+  return `${backdrop}${masthead(skin, number)}${candidatePlate(skin)}${zone}${divider}${contributionPanel(note, { ink: fg, accent, panel: skin.panel, panelInk: skin.panelFg }, { x: 82, width: 916, maxChars: 56 })}${footerLine(skin)}`;
+}
+
+const DESIGNS = {
+  agriculture: [designAgricultureFurrow, designAgricultureLedger],
+  community: [designCommunityCommons, designCommunityWeave],
+  theology: [designTheologyIlluminated, designTheologyStudy],
+};
+
 export function makeCardSvg(note = {}, index = 0) {
-  const style = ((index % variants.length) + variants.length) % variants.length;
-  const faculty = cardFacultyName(note);
-  const lines = facultyLines(faculty);
-  const palettes = [
-    { bg: '#064B37', fg: '#FFF9EE', accent: '#D8BB73', panel: '#0A5A42', panelFg: '#FFF9EE', brand: 'UNIVERSITY COURT · STUDENT VOICE' },
-    { bg: '#F4F0E7', fg: '#0A4936', accent: '#853949', panel: '#E8E0D0', panelFg: '#17372C', brand: 'A NOTE TO THE UNIVERSITY' },
-    { bg: '#E8E1D2', fg: '#1E3028', accent: '#006747', panel: '#F4F0E7', panelFg: '#1E3028', brand: 'UNIVERSITY COURT / CONTRIBUTIONS' },
-    { bg: '#763746', fg: '#FFF8EC', accent: '#E3C783', panel: '#63303D', panelFg: '#FFF8EC', brand: 'A DECLARATION OF STUDENT VOICE' },
-    { bg: '#FBF8F0', fg: '#064B37', accent: '#BEA15E', panel: '#EFE8DA', panelFg: '#17382D', brand: 'A PERSONAL RECORD' },
-    { bg: '#F0EBDD', fg: '#FFF9EE', accent: '#D8BB73', panel: '#E5DDCC', panelFg: '#17382D', brand: 'THE COLLECTIVE · STUDENT VOICE' },
-  ];
-  const palette = palettes[style];
-  const marginStyle = style === 4;
-  const contentX = marginStyle ? 254 : 82;
-  const right = 998;
-  const contentWidth = right - contentX;
-  const detailMax = marginStyle ? 156 : 220;
-  const maxLineChars = marginStyle ? 40 : 56;
-  const topFg = palette.fg;
-
-  let backdrop = `<rect width="1080" height="1350" fill="${palette.bg}"/>`;
-  let ornaments = '';
-  let headerMarkup = '';
-  if (style === 0) {
-    backdrop += `<rect width="18" height="1350" fill="${palette.accent}"/><rect x="54" y="54" width="972" height="1242" fill="none" stroke="${palette.accent}" stroke-opacity=".34"/>`;
-    ornaments = `<path d="M82 143 H998" stroke="${palette.fg}" stroke-opacity=".25"/>`;
-    headerMarkup = header(palette.brand, palette.fg, palette.accent, style + 1, 82, 998, 70);
-  } else if (style === 1) {
-    backdrop += `<rect x="0" y="0" width="1080" height="174" fill="#0A4936"/><rect x="0" y="174" width="18" height="1176" fill="${palette.accent}"/>`;
-    ornaments = `<path d="M82 223 H998" stroke="${palette.fg}" stroke-opacity=".28"/>`;
-    headerMarkup = header(palette.brand, palette.bg, '#D8BB73', style + 1);
-  } else if (style === 2) {
-    backdrop += `<rect x="0" y="0" width="1080" height="24" fill="${palette.accent}"/><rect x="0" y="24" width="1080" height="5" fill="#B99A58"/>`;
-    ornaments = `<path d="M82 143 H998" stroke="${palette.fg}" stroke-opacity=".35"/>`;
-    headerMarkup = header(palette.brand, palette.fg, palette.accent, style + 1);
-  } else if (style === 3) {
-    backdrop += `<rect x="54" y="54" width="972" height="1242" fill="none" stroke="${palette.accent}" stroke-width="1.5"/>`;
-    ornaments = `<path d="M82 155 H998" stroke="${palette.accent}" stroke-opacity=".65"/>`;
-    headerMarkup = header(palette.brand, palette.fg, palette.accent, style + 1, 82, 998, 70);
-  } else if (style === 4) {
-    backdrop += `<rect x="0" y="0" width="205" height="1350" fill="#064B37"/><rect x="205" y="0" width="7" height="1350" fill="${palette.accent}"/>`;
-    ornaments = `${amuSeal(72, 52, 60)}<path d="M55 132 H150" stroke="${palette.accent}" stroke-opacity=".6"/><text x="102" y="200" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" letter-spacing="2.5" fill="#FBF8F0">STUDENT</text><text x="102" y="226" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" letter-spacing="2.5" fill="#FBF8F0">VOICE</text>`;
-    headerMarkup = `<text x="254" y="88" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2.3" fill="${palette.fg}" opacity=".9">${xml(palette.brand)}</text><text x="998" y="88" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2" fill="${palette.fg}" opacity=".72">05 / 06</text>`;
-  } else {
-    backdrop = `<rect width="1080" height="1350" fill="${palette.bg}"/><path d="M0 0 H1080 V635 L0 735 Z" fill="#064B37"/>`;
-    ornaments = `<path d="M82 150 H998" stroke="${palette.accent}" stroke-opacity=".45"/>`;
-    headerMarkup = header(palette.brand, palette.fg, palette.accent, style + 1);
-  }
-
-  const titleSize = marginStyle ? 62 : (faculty === 'Agricultural Sciences' || faculty === 'Community Science' ? 77 : 96);
-  const titleY = 423;
-  const facultyTitle = svgMultiline(lines, { x: contentX - 4, y: titleY, size: titleSize, lineGap: marginStyle ? 72 : 82, fill: topFg, family: 'Arial,Helvetica,sans-serif', weight: 800, letterSpacing: marginStyle ? -1.7 : -2.3 });
-  const lastTitleY = titleY + (lines.length - 1) * (marginStyle ? 72 : 82);
-  const suffix = `<text x="${contentX}" y="${lastTitleY + 80}" font-family="Georgia,serif" font-size="${marginStyle ? 35 : 40}" font-style="italic" fill="${palette.accent}">faculty better.</text>`;
-  const message = `<text x="${contentX}" y="242" font-family="Arial,Helvetica,sans-serif" font-size="16" letter-spacing="3.5" fill="${palette.accent}">I MADE MY CONTRIBUTION</text><text x="${contentX}" y="310" font-family="Georgia,serif" font-size="39" font-style="italic" fill="${topFg}" opacity=".84">for making this</text>${facultyTitle}${suffix}`;
-  const panel = contributionPanel(note, { ink: palette.fg, accent: palette.accent, panel: palette.panel, panelInk: palette.panelFg }, { x: contentX, width: contentWidth, maxChars: maxLineChars });
-  const footerMarkup = marginStyle
-    ? footer(palette.fg, palette.accent, 'MOHTASHIM EJAZ SANI · UNIVERSITY COURT', 254, 998)
-    : footer(style === 5 ? '#064B37' : palette.fg, palette.accent);
-  const rule = `<path d="M${contentX} 143 H${right}" stroke="${palette.fg}" stroke-opacity=".22"/>`;
-  const svg = `${backdrop}${ornaments}${headerMarkup}${rule}${message}${panel}${footerMarkup}`;
+  const key = variantKey(note);
+  const design = ((index % 2) + 2) % 2;
+  const skin = SKINS[key][design];
   const topic = normalizeText(note.topic) || 'Student representation';
   const contribution = normalizeText(note.details);
   const named = !note.anonymous && Boolean(normalizeText(note.name));
-  const ariaExcerpt = named ? (marginStyle ? 130 : 170) : (marginStyle ? 156 : 220);
+  const ariaExcerpt = named ? 170 : 220;
   const ariaDescription = contribution ? `Contribution: ${excerptText(contribution, ariaExcerpt)}` : 'Every faculty deserves to be heard.';
+  const faculty = cardFacultyName(note);
+  const svg = DESIGNS[key][design](note, skin, design);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" role="img" aria-label="Share card for ${xml(faculty)}. Selected topic: ${xml(topic)}. ${xml(ariaDescription)}">${svg}</svg>`;
 }
