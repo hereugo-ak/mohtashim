@@ -2,6 +2,7 @@
 import { FACULTIES } from './data/faculties.js';
 import { cardFacultyName, makeCardSvg, variants } from './lib/shareCards.js';
 import { saveContribution, pingBackend } from './lib/contributionRepository.js';
+import { igGlyph, qrSvg, waGlyph, WHATSAPP_INVITE_BASE, INSTAGRAM_LINK } from './lib/social.js';
 import { initMotion } from './lib/motion.js';
 
 (()=>{
@@ -47,6 +48,7 @@ const warmPing=()=>{if(document.visibilityState==='visible')pingBackend(8000).ca
 warmPing();setInterval(warmPing,240000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')warmPing()});
 initMotion({ modal, mobileCta });
+const socialPop=$('socialPop');document.querySelectorAll('[data-glyph="wa"]').forEach(el=>{el.innerHTML=waGlyph()});document.querySelectorAll('[data-glyph="ig"]').forEach(el=>{el.innerHTML=igGlyph()});let socialQrBuilt=false;const buildSocialQr=()=>{if(socialQrBuilt)return;socialQrBuilt=true;document.querySelector('[data-qr="wa"]').innerHTML=qrSvg(WHATSAPP_INVITE_BASE);document.querySelector('[data-qr="ig"]').innerHTML=qrSvg(INSTAGRAM_LINK)};$('socialQrToggle').addEventListener('click',()=>{const qr=$('socialPopQr');const show=qr.hidden;qr.hidden=!show;$('socialQrToggle').textContent=show?'Hide QR codes':'Prefer to scan? Show QR codes';if(show)buildSocialQr()});$('socialPopClose').addEventListener('click',()=>socialPop.classList.remove('show'));['socialWhatsApp','socialInstagram'].forEach(id=>$(id).addEventListener('click',()=>socialPop.classList.remove('show')));const armSocialPop=()=>{if(modal.classList.contains('open')){const waitModal=setInterval(()=>{if(!modal.classList.contains('open')){clearInterval(waitModal);socialPop.classList.add('show')}},400)}else socialPop.classList.add('show')};setTimeout(armSocialPop,1600);
 pickFaculty('agriculture');
 })();
 
